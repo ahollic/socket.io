@@ -28,8 +28,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/LiterMC/socket.io/engine.io"
-	"github.com/LiterMC/socket.io/internal/utils"
+	"github.com/ahollic/socket.io/engine.io"
+	"github.com/ahollic/socket.io/internal/utils"
 )
 
 var (

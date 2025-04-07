@@ -27,7 +27,7 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/LiterMC/socket.io/internal/utils"
+	"github.com/ahollic/socket.io/internal/utils"
 )
 
 var (

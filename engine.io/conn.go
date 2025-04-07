@@ -31,7 +31,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/LiterMC/socket.io/internal/utils"
+	"github.com/ahollic/socket.io/internal/utils"
 	"github.com/gorilla/websocket"
 )
 

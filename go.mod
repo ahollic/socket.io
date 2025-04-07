@@ -1,4 +1,4 @@
-module github.com/LiterMC/socket.io
+module github.com/ahollic/socket.io
 
 go 1.21.6
 
