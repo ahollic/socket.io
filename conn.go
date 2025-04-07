@@ -138,6 +138,7 @@ func NewSocket(io *engine.Socket, options ...Option) (s *Socket) {
 		if err != nil {
 			s.onError(err)
 		}
+		s.disconnectHandles.Call(s, s.namespace)
 	})
 	io.OnMessage(s.onMessage)
 	return
