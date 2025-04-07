@@ -21,6 +21,7 @@ package socket
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"reflect"
@@ -80,6 +81,7 @@ type Socket struct {
 	errorHandles         utils.HandlerList[*Socket, error]
 	packetHandlers       utils.HandlerList[*Socket, *Packet]
 	messageHandlers      utils.HandlerList[string, []any]
+	reconnectHandles     utils.HandlerList[*Socket, struct{}]
 
 	msgbuf [][]byte
 }
@@ -262,6 +264,18 @@ func (s *Socket) OnBeforeConnect(cb func(s *Socket)) {
 	})
 }
 
+func (s *Socket) OnReconnect(cb func(s *Socket)) {
+	s.reconnectHandles.On(func(s *Socket, _ struct{}) {
+		cb(s)
+	})
+}
+
+func (s *Socket) OnceReconnect(cb func(s *Socket)) {
+	s.reconnectHandles.Once(func(s *Socket, _ struct{}) {
+		cb(s)
+	})
+}
+
 func (s *Socket) OnError(cb func(s *Socket, err error)) {
 	s.errorHandles.On(cb)
 }
@@ -404,6 +418,7 @@ func (s *Socket) onMessage(_ *engine.Socket, data []byte) {
 			return
 		}
 		s.mux.Lock()
+		oldSid := s.sid
 		if true && len(s.msgbuf) == 0 { // TODO: socket.io retrive
 			s.ackId = 0
 		}
@@ -416,6 +431,11 @@ func (s *Socket) onMessage(_ *engine.Socket, data []byte) {
 		s.msgbuf = s.msgbuf[:0]
 		s.status.Store(SocketConnected)
 		s.mux.Unlock()
+
+		// If we already had a sid, this is a reconnect
+		if oldSid != "" && oldSid != obj.Sid {
+			s.reconnectHandles.Call(s, struct{}{})
+		}
 		s.connectHandles.Call(s, pkt.namespace)
 	case DISCONNECT:
 		s.disconnected()
@@ -518,4 +538,39 @@ func (s *Socket) EmitWithAck(event string, args ...any) (<-chan []any, error) {
 		return nil, err
 	}
 	return res, nil
+}
+
+// ReConnect attempts to reconnect to the server with the same namespace.
+// If autoReconnect is true, it will automatically try to reconnect on disconnections.
+func (s *Socket) ReConnect(autoReconnect bool) (err error) {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+
+	if s.Status() != SocketClosed {
+		return errors.New("Socket.IO: socket is not closed, cannot reconnect")
+	}
+
+	s.autoReconnect = autoReconnect
+
+	// Reset connection state but keep authentication and namespace
+	s.status.Store(SocketOpening)
+
+	// If the underlying Engine.IO socket is connected, send connection packet directly
+	if s.io.Connected() {
+		if err = s.sendConnPkt(); err != nil {
+			s.status.Store(SocketClosed)
+			return
+		}
+	} else {
+		// Otherwise reset to closed and wait for Engine.IO to connect
+		s.status.Store(SocketClosed)
+
+		// Attempt to reconnect the Engine.IO socket if it's not connected
+		if !s.io.Connected() {
+			ctx := context.Background()
+			return s.io.Dial(ctx)
+		}
+	}
+
+	return nil
 }
