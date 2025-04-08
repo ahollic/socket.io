@@ -24,6 +24,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"sync"
 	"sync/atomic"
@@ -358,7 +359,7 @@ func (s *Socket) onAck(pkt *Packet) {
 	if ok {
 		var arr [][]any
 		if err := pkt.UnmarshalData(&arr); err != nil {
-			s.onError(err)
+			s.onError(fmt.Errorf("socket.io: failed to unmarshal ack packet: %s,data: %v", err.Error(), string(pkt.data)))
 			return
 		}
 		if len(arr) > 0 {
