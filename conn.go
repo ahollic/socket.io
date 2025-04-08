@@ -357,13 +357,13 @@ func (s *Socket) onAck(pkt *Packet) {
 	delete(s.ackChan, id)
 	s.ackMux.Unlock()
 	if ok {
-		var arr [][]any
+		var arr []any
 		if err := pkt.UnmarshalData(&arr); err != nil {
 			s.onError(fmt.Errorf("socket.io: failed to unmarshal ack packet: %s,data: %v", err.Error(), string(pkt.data)))
 			return
 		}
 		if len(arr) > 0 {
-			ch <- arr[0]
+			ch <- arr
 		} else {
 			ch <- nil
 		}
